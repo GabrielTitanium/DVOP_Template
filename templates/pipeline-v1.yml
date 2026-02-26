@@ -1,44 +1,55 @@
-# File: templates/cd-deploy.yml
+# =============================================================================
+# pipeline-v1.yml — Shared deployment template
+# All pipeline logic lives here. Customer pipeline files in /pipelines/ extend
+# this template and pass in their variable group + parameters.
+# =============================================================================
+
 parameters:
-  - name: environment
-    type: string
-    default: 'QUMC-QA'
+  # Required — passed in by every customer pipeline file
   - name: agentName
     type: string
-    default: 'WS114-QA-QUMC'
-  - name: databaseName
-    type: string
-  - name: serverInstance
-    type: string
-  - name: databaseUserName
-    type: string
-  - name: databasePassword
-    type: string
-  - name: backupDirectory
-    type: string
-  - name: backupFileName
-    type: string
-    default: ''
-  - name: artifactAlias
-    type: string
-    default: 'SaludServices104_120'
-  - name: buildDirectory
-    type: string
-    default: 'C:\Build'
+
   - name: webAppPool
     type: string
+    default: 'TitaniumSolutionsDentalAppPool'
+
   - name: customerPackagesUploadScriptPath
     type: string
+
   - name: customerPackagesXmlReferencePath
     type: string
-  - name: clinicKey
+
+  # Controls whether BackupDatabase / RestoreDatabase / Rollback stages run.
+  # Set to true for production environments, false for QA/demo where a backup
+  # is not required before deployment.
+  - name: enableBackupRestore
+    type: boolean
+    default: false
+
+  # Required only when enableBackupRestore: true
+  - name: backupDirectory
     type: string
-  - name: apiUrl
+    default: ''
+
+  - name: organization
     type: string
-  - name: adminUsername
+    default: 'Titanium-Solutions'
+
+  - name: project
     type: string
-  - name: adminPassword
+    default: 'Titanium'
+
+  - name: variableGroupId
     type: string
+    default: ''
+
+  - name: updateWebConfigScriptPath
+    type: string
+    default: 'scripts/Update-WebConfig.ps1'
+
+  - name: installOriginScriptPath
+    type: string
+    default: 'scripts/Install-Origin.ps1'
 
 stages:
   - stage: Deploy_Approval
