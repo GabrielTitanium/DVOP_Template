@@ -40,15 +40,6 @@ parameters:
   - name: adminPassword
     type: string
 
-resources:
-  pipelines:
-    - pipeline: ${{ parameters.artifactAlias }}
-      project: Titanium
-      source: "Salud Services 104.120"
-      trigger:
-        tags:
-          - ReleaseReady
-
 stages:
   - stage: Deploy_Approval
     displayName: "Deploy Approval"
