@@ -1,0 +1,28 @@
+# File: azure-pipelines.yml
+trigger: none
+pr: none
+
+variables:
+  - group: WS114-QA-QUMC
+  - name: admin_username
+    value: 'admin'
+  - name: admin_password
+    value: '!Titanium1'
+
+stages:
+  - template: templates/cd-deploy.yml
+    parameters:
+      environment: 'QUMC-QA'
+      agentName: 'WS114-QA-QUMC'
+      databaseName: 'UNITY_CORK-CONFIG_114'
+      serverInstance: 'DB2022-03.t.titanium.solutions'
+      databaseUserName: 'TITANIUMDENTAL'
+      databasePassword: '!Titanium1'
+      backupDirectory: '\\DB2022-01.t.titanium.solutions\BackUps2\QUMC Backups'
+      webAppPool: 'TitaniumSolutionsDentalAppPool'
+      customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\MiddleEast\SaudiArabia\SaudiArabia\Run-UploadPackages.ps1'
+      customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\MiddleEast\SaudiArabia\SaudiArabia'
+      clinicKey: 'CONFIG'
+      apiUrl: 'https://WS114-QA-QUMC.t.titanium.solutions/origin/api/'
+      adminUsername: $(admin_username)
+      adminPassword: $(admin_password)

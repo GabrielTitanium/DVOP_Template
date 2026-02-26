@@ -1,0 +1,183 @@
+# File: templates/cd-deploy.yml
+parameters:
+  - name: environment
+    type: string
+    default: 'QUMC-QA'
+  - name: agentName
+    type: string
+    default: 'WS114-QA-QUMC'
+  - name: databaseName
+    type: string
+  - name: serverInstance
+    type: string
+  - name: databaseUserName
+    type: string
+  - name: databasePassword
+    type: string
+  - name: backupDirectory
+    type: string
+  - name: backupFileName
+    type: string
+    default: ''
+  - name: artifactAlias
+    type: string
+    default: 'SaludServices104_120'
+  - name: buildDirectory
+    type: string
+    default: 'C:\Build'
+  - name: webAppPool
+    type: string
+  - name: customerPackagesUploadScriptPath
+    type: string
+  - name: customerPackagesXmlReferencePath
+    type: string
+  - name: clinicKey
+    type: string
+  - name: apiUrl
+    type: string
+  - name: adminUsername
+    type: string
+  - name: adminPassword
+    type: string
+
+resources:
+  pipelines:
+    - pipeline: ${{ parameters.artifactAlias }}
+      project: Titanium
+      source: "Salud Services 104.120"
+      trigger:
+        tags:
+          - ReleaseReady
+
+stages:
+  - stage: Deploy_Approval
+    displayName: "Deploy Approval"
+    jobs:
+      - deployment: Deploy
+        displayName: "${{ parameters.environment }} deployment"
+        environment: ${{ parameters.environment }}
+        pool:
+          name: Default
+          demands: 'agent.name -equals ${{ parameters.agentName }}'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: echo "Deployment approved for ${{ parameters.environment }}"
+
+  - stage: BackupDatabase
+    displayName: "Backup Database Stage"
+    jobs:
+      - job: BackupDatabaseJob
+        pool:
+          name: Default
+          demands: 'agent.name -equals ${{ parameters.agentName }}'
+        steps:
+          - task: PowerShell@2
+            name: BackupDatabaseTask
+            displayName: 'Backup Database'
+            inputs:
+              targetType: inline
+              script: |
+                $DB_IP = "${{ parameters.serverInstance }}"
+                $DB_NAME = "${{ parameters.databaseName }}"
+                $BackupPath = "${{ parameters.backupDirectory }}"
+                $SQL_USER = "${{ parameters.databaseUserName }}"
+                $SQL_PASSWORD = "${{ parameters.databasePassword }}"
+
+                if (-not (Test-Path $BackupPath)) { exit 1 }
+
+                $file = "${{ parameters.backupFileName }}"
+                if ([string]::IsNullOrEmpty($file)) {
+                  $file = "$($DB_NAME)-pre-upgrade_$(Get-Date -Format yyyy-MM-dd).bak"
+                }
+                $path = Join-Path $BackupPath $file
+                if (Test-Path $path) { Remove-Item $path -Force }
+
+                $qry = "BACKUP DATABASE [$DB_NAME] TO DISK = N'$path' WITH NOFORMAT, INIT, NAME = N'$DB_NAME-Full Database Backup', SKIP, STATS = 10;"
+                $cs  = "Server=$DB_IP;Database=$DB_NAME;User ID=$SQL_USER;Password=$SQL_PASSWORD;TrustServerCertificate=True;"
+                Invoke-Sqlcmd -ConnectionString $cs -Query $qry -QueryTimeout 0
+                Write-Host "##vso[task.setvariable variable=BackupFilePath;isOutput=true]$path"
+
+  - stage: FetchArtifacts
+    displayName: "Download Stage"
+    dependsOn: BackupDatabase
+    condition: succeeded()
+    jobs:
+      - job: DownloadArtifacts
+        pool:
+          name: Default
+          demands: 'agent.name -equals ${{ parameters.agentName }}'
+        steps:
+          - download: ${{ parameters.artifactAlias }}
+            artifact: drop
+            patterns: |
+              drop/CustomerPackages.zip
+              drop/Setup_Origin.msi
+
+          - powershell: |
+              Expand-Archive -Path "${{ parameters.buildDirectory }}\CustomerPackages.zip" -DestinationPath "${{ parameters.buildDirectory }}\CustomerPackages" -Force
+            displayName: "Extract CustomerPackages.zip"
+
+  - stage: InstallApplication
+    displayName: "Install Application Stage"
+    dependsOn: FetchArtifacts
+    condition: succeeded()
+    jobs:
+      - job: InstallAppJob
+        pool:
+          name: Default
+          demands: 'agent.name -equals ${{ parameters.agentName }}'
+        steps:
+          - task: PowerShell@2
+            displayName: "Stop IIS Services"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/Stop-IIS.ps1"
+          
+          - task: PowerShell@2
+            displayName: "Install Origin Application"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/Install-Origin.ps1"
+              arguments: >
+                -buildDirectory "${{ parameters.buildDirectory }}"
+                -installerFile "Setup_Origin.msi"
+                -webAppPool "${{ parameters.webAppPool }}"
+          
+  - stage: DatabaseMigration
+    displayName: "Database Migration Stage"
+    dependsOn: InstallApplication
+    condition: succeeded()
+    jobs:
+      - job: MigrateDatabaseJob
+        pool:
+          name: Default
+          demands: 'agent.name -equals ${{ parameters.agentName }}'
+        steps:
+          - task: PowerShell@2
+            displayName: "Run Data Migration"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/Run-DatabaseMigration.ps1"
+              arguments: >
+                -exePath "C:\Program Files\Titanium Solutions\Dental Web Services\bin\Titanium.Migration.DataAccess.Migration.exe"
+                -server "${{ parameters.serverInstance }}"
+                -database "${{ parameters.databaseName }}"
+                -user "${{ parameters.databaseUserName }}"
+                -password "${{ parameters.databasePassword }}"
+
+  - stage: UploadCustomerPackages
+    displayName: "Upload Customer Packages Stage"
+    dependsOn: DatabaseMigration
+    condition: succeeded()
+    jobs:
+      - job: UploadPackagesJob
+        pool:
+          name: Default
+          demands: 'agent.name -equals ${{ parameters.agentName }}'
+        steps:
+          - task: PowerShell@2
+            displayName: "Install CustomerPackages"
+            inputs:
+              filePath: "${{ parameters.customerPackagesUploadScriptPath }}"
+            env:
+              ADMIN_USERNAME: ${{ parameters.adminUsername }}
+              ADMIN_PASSWORD: ${{ parameters.adminPassword }}
