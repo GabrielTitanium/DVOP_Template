@@ -1,0 +1,28 @@
+trigger: none
+pr: none
+
+variables:
+  - group: 'WS114-QA-QUMC'
+
+resources:
+  pipelines:
+    - pipeline: SaludServices104_120
+      project: Titanium
+      source: "Salud Services 104.120"
+      trigger:
+        tags:
+          - ReleaseReady
+
+extends:
+  template: ../templates/pipeline-v1.yml
+  parameters:
+    agentName:                        'WS114-QA-QUMC'
+    webAppPool:                       'TitaniumSolutionsDentalAppPool'
+    customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\MiddleEast\SaudiArabia\SaudiArabia\Run-UploadPackages.ps1'
+    customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\MiddleEast\SaudiArabia\SaudiArabia'
+    enableBackupRestore:              true
+    backupDirectory:                  '\\DB2022-01.t.titanium.solutions\BackUps2\QUMC Backups'
+    installOriginScriptPath:          'scripts/WS114-QA-QUMC/Install-Origin.ps1'
+    organization:                     'Titanium-Solutions'
+    project:                          'Titanium'
+    variableGroupId:                  '35'
