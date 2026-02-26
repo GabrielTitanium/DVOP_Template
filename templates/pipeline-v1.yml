@@ -51,13 +51,21 @@ parameters:
     type: string
     default: 'scripts/Install-Origin.ps1'
 
+# =============================================================================
+# Stages
+# =============================================================================
+
 stages:
+
+  # ---------------------------------------------------------------------------
+  # 1. Deploy Approval — environment gate, triggers approvals in Azure DevOps
+  # ---------------------------------------------------------------------------
   - stage: Deploy_Approval
-    displayName: "Deploy Approval"
+    displayName: Deploy Approval
     jobs:
       - deployment: Deploy
-        displayName: "${{ parameters.environment }} deployment"
-        environment: ${{ parameters.environment }}
+        displayName: '${{ parameters.agentName }} deployment'
+        environment: '${{ parameters.agentName }}'
         pool:
           name: Default
           demands: 'agent.name -equals ${{ parameters.agentName }}'
@@ -65,65 +73,203 @@ stages:
           runOnce:
             deploy:
               steps:
-                - script: echo "Deployment approved for ${{ parameters.environment }}"
+                - checkout: self
 
-  - stage: BackupDatabase
-    displayName: "Backup Database Stage"
-    jobs:
-      - job: BackupDatabaseJob
-        pool:
-          name: Default
-          demands: 'agent.name -equals ${{ parameters.agentName }}'
-        steps:
-          - task: PowerShell@2
-            name: BackupDatabaseTask
-            displayName: 'Backup Database'
-            inputs:
-              targetType: inline
-              script: |
-                $DB_IP = "${{ parameters.serverInstance }}"
-                $DB_NAME = "${{ parameters.databaseName }}"
-                $BackupPath = "${{ parameters.backupDirectory }}"
-                $SQL_USER = "${{ parameters.databaseUserName }}"
-                $SQL_PASSWORD = "${{ parameters.databasePassword }}"
+                - script: |
+                    echo "Dumping entire repo content:"
+                    dir /s "$(Build.SourcesDirectory)"
+                  displayName: "Debug — List All Files"
 
-                if (-not (Test-Path $BackupPath)) { exit 1 }
+                - task: PowerShell@2
+                  displayName: "Stop IIS Services"
+                  inputs:
+                    filePath: "$(Build.SourcesDirectory)/scripts/Stop-IIS.ps1"
+                    failOnStderr: true
 
-                $file = "${{ parameters.backupFileName }}"
-                if ([string]::IsNullOrEmpty($file)) {
+                - task: PowerShell@2
+                  displayName: "Copy Maintenance Scripts"
+                  inputs:
+                    targetType: inline
+                    script: |
+                      $src  = "$(Build.SourcesDirectory)\scripts"
+                      $dest = "C:\MaintenancePage\MaintenancePage"
+
+                      Write-Host "Ensuring destination directory exists at $dest..."
+                      if (-not (Test-Path $dest)) {
+                          New-Item -ItemType Directory -Path $dest -Force | Out-Null
+                      }
+
+                      Write-Host "Copying maintenance scripts to $dest..."
+                      Copy-Item "$src\Server.ps1" $dest -Force
+                      Copy-Item "$src\maintenance.html" $dest -Force
+
+                - task: PowerShell@2
+                  displayName: "Ensure Maintenance Task Exists"
+                  inputs:
+                    targetType: inline
+                    script: |
+                      $taskName  = "MaintenanceServer"
+                      $scriptPath = "C:\MaintenancePage\MaintenancePage\Server.ps1"
+
+                      $action    = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+                      $trigger   = New-ScheduledTaskTrigger -Once -At "00:00"
+                      $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+                      Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force
+
+                - task: PowerShell@2
+                  displayName: "Maintenance ON"
+                  inputs:
+                    targetType: inline
+                    script: |
+                      schtasks /run /tn "MaintenanceServer"
+
+  # ---------------------------------------------------------------------------
+  # 2. Backup Database — only runs when enableBackupRestore is true
+  # ---------------------------------------------------------------------------
+  - ${{ if eq(parameters.enableBackupRestore, true) }}:
+    - stage: BackupDatabase
+      displayName: "Backup Database Stage"
+      dependsOn: Deploy_Approval
+      condition: succeeded()
+      jobs:
+        - job: BackupDatabaseJob
+          pool:
+            name: Default
+            demands: 'agent.name -equals ${{ parameters.agentName }}'
+          steps:
+            - checkout: self
+
+            - task: PowerShell@2
+              name: BackupDatabaseTask
+              displayName: 'Backup Database'
+              inputs:
+                targetType: inline
+                script: |
+                  $DB_IP      = "$(privateDB)"
+                  $DB_NAME    = "$(databaseName)"
+                  $BackupPath = "${{ parameters.backupDirectory }}"
+                  $SQL_USER   = "$(databaseUser)"
+                  $SQL_PASSWORD = "$(databasePassword)"
+
+                  if (-not (Test-Path $BackupPath)) {
+                    Write-Host "ERROR: Backup directory '$BackupPath' does not exist."
+                    exit 1
+                  }
+
                   $file = "$($DB_NAME)-pre-upgrade_$(Get-Date -Format yyyy-MM-dd).bak"
-                }
-                $path = Join-Path $BackupPath $file
-                if (Test-Path $path) { Remove-Item $path -Force }
+                  $path = Join-Path $BackupPath $file
 
-                $qry = "BACKUP DATABASE [$DB_NAME] TO DISK = N'$path' WITH NOFORMAT, INIT, NAME = N'$DB_NAME-Full Database Backup', SKIP, STATS = 10;"
-                $cs  = "Server=$DB_IP;Database=$DB_NAME;User ID=$SQL_USER;Password=$SQL_PASSWORD;TrustServerCertificate=True;"
-                Invoke-Sqlcmd -ConnectionString $cs -Query $qry -QueryTimeout 0
-                Write-Host "##vso[task.setvariable variable=BackupFilePath;isOutput=true]$path"
+                  if (Test-Path $path) {
+                    Write-Host "Overwriting existing backup: $path"
+                    Remove-Item $path -Force
+                  }
 
-  - stage: FetchArtifacts
+                  $qry = "BACKUP DATABASE [$DB_NAME] TO DISK = N'$path' WITH NOFORMAT, INIT, NAME = N'$DB_NAME-Full Database Backup', SKIP, STATS = 10;"
+                  $cs  = "Server=$DB_IP;Database=$DB_NAME;User ID=$SQL_USER;Password=$SQL_PASSWORD;TrustServerCertificate=True;"
+
+                  Write-Host "Starting backup of '$DB_NAME' to '$path'..."
+                  try {
+                    Invoke-Sqlcmd -ConnectionString $cs -Query $qry -QueryTimeout 0
+                    Write-Host "Backup completed successfully."
+                    Write-Host "##vso[task.setvariable variable=BackupFilePath;isOutput=true]$path"
+                  }
+                  catch {
+                    Write-Error "Backup failed: $($_.Exception.Message)"
+                    exit 1
+                  }
+
+            - task: PowerShell@2
+              displayName: "Save Web.Config"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Save_WebConfig.ps1"
+              continueOnError: true
+
+            - task: PowerShell@2
+              displayName: "Uninstall Origin Application"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
+                arguments: >
+                  -ApplicationName "Origin Web Services"
+                  -Uninstall
+              continueOnError: true
+
+  # ---------------------------------------------------------------------------
+  # 3. Fetch Salud Artifacts
+  # ---------------------------------------------------------------------------
+  - stage: FetchSaludArtifacts
     displayName: "Download Stage"
-    dependsOn: BackupDatabase
+    dependsOn:
+      - ${{ if eq(parameters.enableBackupRestore, true) }}:
+        - BackupDatabase
+      - ${{ if eq(parameters.enableBackupRestore, false) }}:
+        - Deploy_Approval
     condition: succeeded()
     jobs:
       - job: DownloadArtifacts
         pool:
           name: Default
           demands: 'agent.name -equals ${{ parameters.agentName }}'
+        workspace:
+          clean: all
         steps:
-          - download: ${{ parameters.artifactAlias }}
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: "Save Web.Config"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/scripts/Save_WebConfig.ps1"
+            continueOnError: true
+            # Note: only runs this when backup stage is disabled (otherwise it ran above)
+            condition: ${{ eq(parameters.enableBackupRestore, false) }}
+
+          - task: PowerShell@2
+            displayName: "Uninstall Origin Application"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
+              arguments: >
+                -ApplicationName "Origin Web Services"
+                -Uninstall
+            continueOnError: true
+            condition: ${{ eq(parameters.enableBackupRestore, false) }}
+
+          - task: PowerShell@2
+            displayName: "Install VC Redist"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/scripts/InstallVCRedist.ps1"
+              failOnStderr: true
+
+          - download: SaludServices104_120
             artifact: drop
             patterns: |
               drop/CustomerPackages.zip
               drop/Setup_Origin.msi
+            displayName: "Downloading Artifacts"
+
+          - task: PowerShell@2
+            displayName: "Copying Artifacts to Build Directory"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/scripts/Copy-Artifacts.ps1"
+              arguments: >
+                -sourcePath "$(Pipeline.Workspace)\SaludServices104_120\drop\"
+                -destinationPath "C:\Build\"
+                -itemsToMove "Setup_Origin.msi,CustomerPackages.zip"
+              failOnStderr: true
 
           - powershell: |
-              Expand-Archive -Path "${{ parameters.buildDirectory }}\CustomerPackages.zip" -DestinationPath "${{ parameters.buildDirectory }}\CustomerPackages" -Force
-            displayName: "Extract CustomerPackages.zip"
+              $zipPath     = "C:\Build\CustomerPackages.zip"
+              $extractPath = "C:\Build\CustomerPackages"
+              Write-Host "ZIP Path: $zipPath"
+              Write-Host "Extract Path: $extractPath"
+              Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+            displayName: "Extracting CustomerPackages.zip"
 
+  # ---------------------------------------------------------------------------
+  # 4. Install Application
+  # ---------------------------------------------------------------------------
   - stage: InstallApplication
     displayName: "Install Application Stage"
-    dependsOn: FetchArtifacts
+    dependsOn: FetchSaludArtifacts
     condition: succeeded()
     jobs:
       - job: InstallAppJob
@@ -131,20 +277,94 @@ stages:
           name: Default
           demands: 'agent.name -equals ${{ parameters.agentName }}'
         steps:
+          - checkout: self
+
           - task: PowerShell@2
-            displayName: "Stop IIS Services"
+            displayName: "Clear Registry Values"
             inputs:
-              filePath: "$(Build.SourcesDirectory)/Stop-IIS.ps1"
-          
+              filePath: "$(Build.SourcesDirectory)/scripts/Clear-Registry.ps1"
+              failOnStderr: true
+
           - task: PowerShell@2
             displayName: "Install Origin Application"
             inputs:
-              filePath: "$(Build.SourcesDirectory)/Install-Origin.ps1"
+              filePath: "$(Build.SourcesDirectory)/${{ parameters.installOriginScriptPath }}"
               arguments: >
-                -buildDirectory "${{ parameters.buildDirectory }}"
+                -buildDirectory "C:\Build\"
                 -installerFile "Setup_Origin.msi"
+                -logFile "msiexec.log"
+                -installDir "C:\Program Files\Titanium Solutions"
+                -features "SelfCheckInFeature,WebServicesFeature,ConfigureIISFeature,APIServicesFeature,RenderServicesFeature"
+                -webSite "Default Web Site"
+                -webDescription "Default Web Site"
+                -webSPort 80
+                -webSiteIp "*"
+                -dsnMssqlDatabase $ENV:DB_NAME
+                -dsnMssqlUsername $ENV:SQL_USER
+                -dsnMssqlPassword $ENV:SQL_PASSWORD
+                -dsnMssqlServer $ENV:DB_IP
+                -webServicesPathName "TITANIUMWSERVER"
+                -webApplicationsPathName "TITANIUMCLIENT"
+                -allowMultipleVersions "No"
+                -webAppName "Origin"
                 -webAppPool "${{ parameters.webAppPool }}"
-          
+                -webAppPoolCreate "true"
+                -documentsPath "%ALLUSERSPROFILE%\Titanium Solutions\Documents"
+                -reportingServicesURL $ENV:REPORTURL
+                -reportingServicesContextFolder $ENV:REPORTCONTEXTFOLDER
+                -reportingServicesMenuFolder $ENV:REPORTMENUFOLDER
+                -reportingServicesUserName $ENV:REPORTSERVICESUSERNAME
+                -reportingServicesPassword $ENV:REPORTSERVICESPASSWORD
+              failOnStderr: true
+            env:
+              DB_IP:                  $(privateDB)
+              DB_NAME:                $(databaseName)
+              SQL_USER:               $(databaseUser)
+              SQL_PASSWORD:           $(databasePassword)
+              REPORTURL:              $(reportServerURL)
+              REPORTCONTEXTFOLDER:    $(reportContextFolder)
+              REPORTMENUFOLDER:       $(reportMenuFolder)
+              REPORTSERVICESUSERNAME: $(reportUser)
+              REPORTSERVICESPASSWORD: $(reportPassword)
+
+          - task: PowerShell@2
+            displayName: "Update Web.config"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/${{ parameters.updateWebConfigScriptPath }}"
+              failOnStderr: true
+
+          - powershell: |
+              $AppPoolName = "${{ parameters.webAppPool }}"
+              $RecycleTime = "02:00"
+
+              Import-Module IISAdministration
+              $session = Get-IISServerManager
+              $appPool  = $session.ApplicationPools[$AppPoolName]
+
+              if (-not $appPool) {
+                Write-Host "Application Pool '$AppPoolName' not found!"
+                exit 1
+              }
+
+              $appPool.managedPipelineMode                    = 0   # Integrated
+              $appPool.AutoStart                              = $true
+              $appPool.StartMode                              = [Microsoft.Web.Administration.StartMode]::AlwaysRunning
+              $appPool.Recycling.DisallowOverlappingRotation  = $true
+              $appPool.Recycling.PeriodicRestart.Schedule.Clear()
+              $appPool.Recycling.PeriodicRestart.Time         = [TimeSpan]::Zero
+              $appPool.Recycling.PeriodicRestart.Requests     = 0
+              $appPool.Recycling.PeriodicRestart.Memory       = 0
+              $appPool.Recycling.PeriodicRestart.PrivateMemory = 0
+              $appPool.Recycling.PeriodicRestart.Schedule.Add($RecycleTime)
+
+              $session.CommitChanges()
+              Write-Host "IIS App Pool configured successfully."
+            displayName: 'OptimiseIIS'
+            continueOnError: true
+
+  # ---------------------------------------------------------------------------
+  # 5. Database Migration
+  # ---------------------------------------------------------------------------
   - stage: DatabaseMigration
     displayName: "Database Migration Stage"
     dependsOn: InstallApplication
@@ -155,17 +375,35 @@ stages:
           name: Default
           demands: 'agent.name -equals ${{ parameters.agentName }}'
         steps:
+          - checkout: self
+
           - task: PowerShell@2
             displayName: "Run Data Migration"
             inputs:
-              filePath: "$(Build.SourcesDirectory)/Run-DatabaseMigration.ps1"
+              filePath: "$(Build.SourcesDirectory)/scripts/Run-DatabaseMigration.ps1"
               arguments: >
                 -exePath "C:\Program Files\Titanium Solutions\Dental Web Services\bin\Titanium.Migration.DataAccess.Migration.exe"
-                -server "${{ parameters.serverInstance }}"
-                -database "${{ parameters.databaseName }}"
-                -user "${{ parameters.databaseUserName }}"
-                -password "${{ parameters.databasePassword }}"
+                -server $ENV:DB_IP
+                -database $ENV:DB_NAME
+                -user $ENV:SQL_USER
+                -password $ENV:SQL_PASSWORD
+                -logFile "C:\Build\DataMigrationLog.txt"
+            env:
+              DB_IP:       $(privateDB)
+              DB_NAME:     $(databaseName)
+              SQL_USER:    $(databaseUser)
+              SQL_PASSWORD: $(databasePassword)
 
+          - task: PowerShell@2
+            displayName: "Display Migration Log Message"
+            condition: eq(variables['Agent.JobStatus'], 'SucceededWithIssues')
+            continueOnError: true
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/scripts/Migration-Message.ps1"
+
+  # ---------------------------------------------------------------------------
+  # 6. Upload Customer Packages
+  # ---------------------------------------------------------------------------
   - stage: UploadCustomerPackages
     displayName: "Upload Customer Packages Stage"
     dependsOn: DatabaseMigration
@@ -176,10 +414,294 @@ stages:
           name: Default
           demands: 'agent.name -equals ${{ parameters.agentName }}'
         steps:
+          - checkout: self
+
+          - task: PowerShell@2
+            displayName: "Start IIS Services"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/scripts/Start-IIS.ps1"
+              failOnStderr: true
+
+          - task: PowerShell@2
+            displayName: "Maintenance OFF"
+            inputs:
+              targetType: inline
+              script: |
+                schtasks /end /tn "MaintenanceServer" 2>$null
+                Get-Process powershell -ErrorAction SilentlyContinue |
+                  Where-Object { $_.StartInfo.Arguments -like "*Server.ps1*" } |
+                  Stop-Process -Force -ErrorAction SilentlyContinue
+
+          - task: PowerShell@2
+            displayName: "Configure CustomerPackages"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/scripts/Create-UploadWebServices.ps1"
+              arguments: >
+                -url $env:APIURL
+                -username $env:ADMIN_USERNAME
+                -password $env:ADMIN_PASSWORD
+                -clinic $env:CLINIC
+                -filepath "${{ parameters.customerPackagesXmlReferencePath }}"
+            env:
+              ADMIN_USERNAME: $(admin_username)
+              ADMIN_PASSWORD: $(admin_password)
+              APIURL:         $(API)
+              CLINIC:         $(ClinicKey)
+
+          - task: CopyFiles@2
+            displayName: "Copy Run-UploadPackages to CustomerPackages path"
+            inputs:
+              SourceFolder: '$(Build.SourcesDirectory)/scripts'
+              Contents: 'Run-UploadPackages.ps1'
+              TargetFolder: '${{ parameters.customerPackagesXmlReferencePath }}'
+
           - task: PowerShell@2
             displayName: "Install CustomerPackages"
             inputs:
               filePath: "${{ parameters.customerPackagesUploadScriptPath }}"
-            env:
-              ADMIN_USERNAME: ${{ parameters.adminUsername }}
-              ADMIN_PASSWORD: ${{ parameters.adminPassword }}
+            continueOnError: true
+
+  # ---------------------------------------------------------------------------
+  # 7. Restore Database — only runs when enableBackupRestore is true AND a
+  #    previous stage has failed
+  # ---------------------------------------------------------------------------
+  - ${{ if eq(parameters.enableBackupRestore, true) }}:
+    - stage: RestoreDatabase
+      displayName: "Restore Database Stage"
+      dependsOn:
+        - BackupDatabase
+        - FetchSaludArtifacts
+        - InstallApplication
+        - DatabaseMigration
+        - UploadCustomerPackages
+      condition: |
+        or(
+          failed('BackupDatabase'),
+          failed('FetchSaludArtifacts'),
+          failed('InstallApplication'),
+          failed('DatabaseMigration'),
+          failed('UploadCustomerPackages')
+        )
+      jobs:
+        - job: RestoreDatabaseJob
+          pool:
+            name: Default
+            demands: 'agent.name -equals ${{ parameters.agentName }}'
+          variables:
+            backupFilePath: $[ stageDependencies.BackupDatabase.BackupDatabaseJob.outputs['BackupDatabaseTask.BackupFilePath'] ]
+          steps:
+            - checkout: self
+
+            - task: PowerShell@2
+              displayName: "Restore Database"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Restore-Database.ps1"
+                arguments: >
+                  -serverName $ENV:DB_IP
+                  -databaseToBeRestored $ENV:DB_NAME
+                  -backupFilePath "$(backupFilePath)"
+                  -SqlUsername $ENV:SQL_USER
+                  -SqlPassword $ENV:SQL_PASSWORD
+                failOnStderr: true
+              env:
+                DB_IP:       $(privateDB)
+                DB_NAME:     $(databaseName)
+                SQL_USER:    $(databaseUser)
+                SQL_PASSWORD: $(databasePassword)
+
+    # -------------------------------------------------------------------------
+    # 8. Rollback — reinstalls previous known-good build after DB restore
+    # -------------------------------------------------------------------------
+    - stage: Rollback
+      displayName: "Rollback Stage"
+      dependsOn: RestoreDatabase
+      condition: |
+        and(
+          succeededOrFailed('RestoreDatabase'),
+          not(failed('RestoreDatabase'))
+        )
+      jobs:
+        - job: RollbackJob
+          pool:
+            name: Default
+            demands: 'agent.name -equals ${{ parameters.agentName }}'
+          variables:
+            backupFilePath: $[ stageDependencies.BackupDatabase.BackupDatabaseJob.outputs['BackupDatabaseTask.BackupFilePath'] ]
+          steps:
+            - checkout: self
+
+            - task: PowerShell@2
+              name: ExtractLastGoodBuildId
+              displayName: "Extract Last Signed Build ID"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Extract-LastGoodBuildId.ps1"
+                arguments: >
+                  -organization ${{ parameters.organization }}
+                  -project ${{ parameters.project }}
+                  -variableGroupId ${{ parameters.variableGroupId }}
+                  -msAzurePATGroupVariables $(msAzurePAT)
+                failOnStderr: true
+
+            - task: PowerShell@2
+              displayName: "Stop IIS Services"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Stop-IIS.ps1"
+                failOnStderr: true
+
+            - task: PowerShell@2
+              displayName: "Uninstall Origin Application"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
+                arguments: >
+                  -ApplicationName "Origin Web Services"
+                  -Uninstall
+              continueOnError: true
+
+            - task: DownloadPipelineArtifact@2
+              displayName: "Download Drop Artifact (last good build)"
+              inputs:
+                buildType: 'specific'
+                project: '${{ parameters.project }}'
+                pipeline: 'Salud Services 104.120'
+                buildVersionToDownload: 'specific'
+                buildId: '$(ExtractLastGoodBuildId.LastGoodBuildId)'
+                artifactName: 'drop'
+                targetPath: '$(Pipeline.Workspace)/drop'
+
+            - task: PowerShell@2
+              displayName: "Copying Artifacts to Build Directory"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Copy-Artifacts-Rollback.ps1"
+                arguments: >
+                  -sourcePath "$(Pipeline.Workspace)\drop\"
+                  -destinationPath "C:\Build\"
+                  -itemsToMove "Setup_Origin.msi,CustomerPackages.zip"
+                failOnStderr: true
+
+            - powershell: |
+                $zipPath     = "C:\Build\CustomerPackages.zip"
+                $extractPath = "C:\Build\CustomerPackages"
+                Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+              displayName: "Extracting CustomerPackages.zip"
+
+            - task: PowerShell@2
+              displayName: "Clear Registry Values"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Clear-Registry.ps1"
+                failOnStderr: true
+
+            - task: PowerShell@2
+              displayName: "Install Origin Application (Rollback)"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/${{ parameters.installOriginScriptPath }}"
+                arguments: >
+                  -buildDirectory "C:\Build\"
+                  -installerFile "Setup_Origin.msi"
+                  -logFile "msiexec.log"
+                  -installDir "C:\Program Files\Titanium Solutions"
+                  -features "SelfCheckInFeature,WebServicesFeature,ConfigureIISFeature,APIServicesFeature,RenderServicesFeature"
+                  -webSite "Default Web Site"
+                  -webDescription "Default Web Site"
+                  -webSPort 80
+                  -webSiteIp "*"
+                  -dsnMssqlDatabase $ENV:DB_NAME
+                  -dsnMssqlUsername $ENV:SQL_USER
+                  -dsnMssqlPassword $ENV:SQL_PASSWORD
+                  -dsnMssqlServer $ENV:DB_IP
+                  -webServicesPathName "TITANIUMWSERVER"
+                  -webApplicationsPathName "TITANIUMCLIENT"
+                  -allowMultipleVersions "No"
+                  -webAppName "Origin"
+                  -webAppPool "${{ parameters.webAppPool }}"
+                  -webAppPoolCreate "true"
+                  -documentsPath "%ALLUSERSPROFILE%\Titanium Solutions\Documents"
+                  -reportingServicesURL $ENV:REPORTURL
+                  -reportingServicesContextFolder $ENV:REPORTCONTEXTFOLDER
+                  -reportingServicesMenuFolder $ENV:REPORTMENUFOLDER
+                  -reportingServicesUserName $ENV:REPORTSERVICESUSERNAME
+                  -reportingServicesPassword $ENV:REPORTSERVICESPASSWORD
+                failOnStderr: true
+              env:
+                DB_IP:                  $(privateDB)
+                DB_NAME:                $(databaseName)
+                SQL_USER:               $(databaseUser)
+                SQL_PASSWORD:           $(databasePassword)
+                REPORTURL:              $(reportServerURL)
+                REPORTCONTEXTFOLDER:    $(reportContextFolder)
+                REPORTMENUFOLDER:       $(reportMenuFolder)
+                REPORTSERVICESUSERNAME: $(reportUser)
+                REPORTSERVICESPASSWORD: $(reportPassword)
+
+            - powershell: |
+                $AppPoolName = "${{ parameters.webAppPool }}"
+                $RecycleTime = "02:00"
+                Import-Module IISAdministration
+                $session  = Get-IISServerManager
+                $appPool  = $session.ApplicationPools[$AppPoolName]
+                if (-not $appPool) { Write-Host "App Pool not found!"; exit 1 }
+                $appPool.managedPipelineMode                    = 0
+                $appPool.AutoStart                              = $true
+                $appPool.StartMode                              = [Microsoft.Web.Administration.StartMode]::AlwaysRunning
+                $appPool.Recycling.DisallowOverlappingRotation  = $true
+                $appPool.Recycling.PeriodicRestart.Schedule.Clear()
+                $appPool.Recycling.PeriodicRestart.Time         = [TimeSpan]::Zero
+                $appPool.Recycling.PeriodicRestart.Requests     = 0
+                $appPool.Recycling.PeriodicRestart.Memory       = 0
+                $appPool.Recycling.PeriodicRestart.PrivateMemory = 0
+                $appPool.Recycling.PeriodicRestart.Schedule.Add($RecycleTime)
+                $session.CommitChanges()
+              displayName: 'OptimiseIIS'
+              continueOnError: true
+
+            - task: PowerShell@2
+              displayName: "Run Data Migration (Rollback)"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Run-DatabaseMigration.ps1"
+                arguments: >
+                  -exePath "C:\Program Files\Titanium Solutions\Dental Web Services\bin\Titanium.Migration.DataAccess.Migration.exe"
+                  -server $ENV:DB_IP
+                  -database $ENV:DB_NAME
+                  -user $ENV:SQL_USER
+                  -password $ENV:SQL_PASSWORD
+                  -logFile "C:\Build\DataMigrationLog.txt"
+                failOnStderr: true
+              env:
+                DB_IP:       $(privateDB)
+                DB_NAME:     $(databaseName)
+                SQL_USER:    $(databaseUser)
+                SQL_PASSWORD: $(databasePassword)
+
+            - task: PowerShell@2
+              displayName: "Start IIS Services"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Start-IIS.ps1"
+                failOnStderr: true
+
+            - task: PowerShell@2
+              displayName: "Configure CustomerPackages (Rollback)"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Create-UploadWebServices.ps1"
+                arguments: >
+                  -url $env:APIURL
+                  -username $env:ADMIN_USERNAME
+                  -password $env:ADMIN_PASSWORD
+                  -clinic $env:CLINIC
+                  -filepath "${{ parameters.customerPackagesXmlReferencePath }}"
+              env:
+                ADMIN_USERNAME: $(admin_username)
+                ADMIN_PASSWORD: $(admin_password)
+                APIURL:         $(API)
+                CLINIC:         $(ClinicKey)
+
+            - task: CopyFiles@2
+              displayName: "Copy Run-UploadPackages to CustomerPackages path"
+              inputs:
+                SourceFolder: '$(Build.SourcesDirectory)/scripts'
+                Contents: 'Run-UploadPackages.ps1'
+                TargetFolder: '${{ parameters.customerPackagesXmlReferencePath }}'
+
+            - task: PowerShell@2
+              displayName: "Install CustomerPackages (Rollback)"
+              inputs:
+                filePath: "${{ parameters.customerPackagesUploadScriptPath }}"
+              continueOnError: true
