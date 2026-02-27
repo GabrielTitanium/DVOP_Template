@@ -144,40 +144,18 @@ stages:
               name: BackupDatabaseTask
               displayName: 'Backup Database'
               inputs:
-                targetType: inline
-                script: |
-                  $DB_IP      = "$(privateDB)"
-                  $DB_NAME    = "$(databaseName)"
-                  $BackupPath = "${{ parameters.backupDirectory }}"
-                  $SQL_USER   = "$(databaseUser)"
-                  $SQL_PASSWORD = "$(databasePassword)"
-
-                  if (-not (Test-Path $BackupPath)) {
-                    Write-Host "ERROR: Backup directory '$BackupPath' does not exist."
-                    exit 1
-                  }
-
-                  $file = "$($DB_NAME)-pre-upgrade_$(Get-Date -Format yyyy-MM-dd).bak"
-                  $path = Join-Path $BackupPath $file
-
-                  if (Test-Path $path) {
-                    Write-Host "Overwriting existing backup: $path"
-                    Remove-Item $path -Force
-                  }
-
-                  $qry = "BACKUP DATABASE [$DB_NAME] TO DISK = N'$path' WITH NOFORMAT, INIT, NAME = N'$DB_NAME-Full Database Backup', SKIP, STATS = 10;"
-                  $cs  = "Server=$DB_IP;Database=$DB_NAME;User ID=$SQL_USER;Password=$SQL_PASSWORD;TrustServerCertificate=True;"
-
-                  Write-Host "Starting backup of '$DB_NAME' to '$path'..."
-                  try {
-                    Invoke-Sqlcmd -ConnectionString $cs -Query $qry -QueryTimeout 0
-                    Write-Host "Backup completed successfully."
-                    Write-Host "##vso[task.setvariable variable=BackupFilePath;isOutput=true]$path"
-                  }
-                  catch {
-                    Write-Error "Backup failed: $($_.Exception.Message)"
-                    exit 1
-                  }
+                filePath: "$(Build.SourcesDirectory)/scripts/Backup-Database.ps1"
+                arguments: >
+                  -DB_IP "$(privateDB)"
+                  -DB_NAME "$(databaseName)"
+                  -BackupPath "$(BackupDirectory)"
+                  -SQL_USER "$(databaseUserName)"
+                  -SQL_PASSWORD "$(databasePassword)"
+              env:
+                DB_IP:           $(privateDB)
+                DB_NAME:         $(databaseName)
+                SQL_USER:        $(databaseUserName)
+                SQL_PASSWORD:    $(databasePassword)
 
             - task: PowerShell@2
               displayName: "Save Web.Config"

@@ -2,64 +2,54 @@ param(
     [string]$DB_IP,
     [string]$DB_NAME,
     [string]$BackupPath,
-    [string]$SQL_USER
+    [string]$SQL_USER,
+    [string]$SQL_PASSWORD
 )
 
-# Grab the password from environment variable
-$SQL_PASSWORD = $env:SQL_PASSWORD
+write-host "Received parameters:"
+write-host "DB_IP: $DB_IP"
+write-host "DB_NAME: $DB_NAME"
+write-host "BackupPath: $BackupPath"
+write-host "SQL_USER: $SQL_USER"
 
-# Log input values (for debugging)
-Write-Host "DB_IP: $DB_IP"
-Write-Host "DB_NAME: $DB_NAME"
-Write-Host "BackupPath: $BackupPath"
-Write-Host "SQL_USER: $SQL_USER"
-Write-Host "SQL_PASSWORD length: $($SQL_PASSWORD.Length)"
-
-# --- Ensure backup folder exists ---
+#— verify that the backup folder exists
 if (-not (Test-Path $BackupPath)) {
-    Write-Host "Backup directory '$BackupPath' does not exist. Creating it..."
-    New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
+Write-Host "Backup directory '$BackupPath' does not exist. Creating it..."
+New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
 }
 
-# --- Generate dynamic filename if not supplied via env ---
+# if no filename was supplied, generate one as "<Database>_pre-upgrade_<yyyy-MM-dd>.bak"
 $file = $env:BackupFileName
 if ([string]::IsNullOrEmpty($file)) {
-    $file = "$($DB_NAME)-pre-upgrade_$(Get-Date -Format yyyy-MM-dd).bak"
+$file = "$($DB_NAME)-pre-upgrade_$(Get-Date -Format yyyy-MM-dd).bak"
 }
 
 $path = Join-Path $BackupPath $file
-
-# --- Delete existing backup if present ---
+#— if a file already exists, skip backup
 if (Test-Path $path) {
-    Write-Host "Overwriting existing backup: $path"
-    Remove-Item $path -Force
+    Write-Host "Backup file already exists. Skipping backup."
+    Write-Host "Existing backup file: $path"
+    #— export the final path as a pipeline (output) variable
+    Write-Host "##vso[task.setvariable variable=BackupFilePath;isOutput=true]$path"
+
+    # Export variable for downstream tasks
+    Write-Host "##vso[task.setvariable variable=BackupFilePath;isOutput=true]$path"
+    exit 0
 }
 
-# --- Build T-SQL BACKUP command and connection string ---
-$qry = @"
-BACKUP DATABASE [$DB_NAME]
-TO DISK = N'$path'
-WITH NOFORMAT, INIT,
-NAME = N'$($DB_NAME)-Full Database Backup',
-SKIP, STATS = 10;
-"@
-
+#— build the T-SQL BACKUP command and connection string (with TrustServerCertificate=True)
+$qry = "BACKUP DATABASE [$DB_NAME] TO DISK = N'$path' WITH NOFORMAT, INIT, NAME = N'$DB_NAME-Full Database Backup', SKIP, STATS = 10;"
 $cs  = "Server=$DB_IP;Database=$DB_NAME;User ID=$SQL_USER;Password=$SQL_PASSWORD;TrustServerCertificate=True;"
 
-# --- Perform backup ---
 Write-Host "Starting backup of '$DB_NAME' to '$path'..."
 try {
     Invoke-Sqlcmd -ConnectionString $cs -Query $qry
     Write-Host "✔ Backup completed successfully."
     Write-Host "Backup file: $path"
-
-    # --- SAFELY export the final path as a pipeline output variable ---
-    $safePath = $path -replace ";","%3B" -replace "]","%5D" -replace "`n","" -replace "`r",""
-    $adoCommand = "##vso[task.setvariable variable=BackupFilePath;isOutput=true]$safePath"
-    Write-Host $adoCommand
+    #— export the final path as a pipeline (output) variable
+    Write-Host "##vso[task.setvariable variable=BackupFilePath;isOutput=true]$path"
 }
 catch {
-    Write-Host "Backup failed. Raw exception:"
-    Write-Host $_ | Out-String
+    Write-Error "Backup failed: $($_.Exception.Message)"
     exit 1
 }
