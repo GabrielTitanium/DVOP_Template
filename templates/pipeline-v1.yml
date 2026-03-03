@@ -329,11 +329,11 @@ stages:
               REPORTSERVICESPASSWORD: $(reportPassword)
 
           - ${{ if ne(parameters.updateWebConfigScriptPath, '') }}:
-          - task: PowerShell@2
-            displayName: "Update Web.config"
-            inputs:
-              filePath: "$(Build.SourcesDirectory)/${{ parameters.updateWebConfigScriptPath }}"
-              failOnStderr: true
+            - task: PowerShell@2
+              displayName: "Update Web.config"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/${{ parameters.updateWebConfigScriptPath }}"
+                failOnStderr: true
 
           - powershell: |
               $AppPoolName = "${{ parameters.webAppPool }}"
