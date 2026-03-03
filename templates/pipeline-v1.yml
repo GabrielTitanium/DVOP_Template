@@ -213,6 +213,12 @@ stages:
                   -Uninstall
               continueOnError: true
 
+            - task: PowerShell@2
+            displayName: "Install VC Redist"
+            inputs:
+              filePath: "$(Build.SourcesDirectory)/scripts/InstallVCRedist.ps1"
+              failOnStderr: true
+
   # ---------------------------------------------------------------------------
   # 3. Fetch Salud Artifacts
   # ---------------------------------------------------------------------------
@@ -233,27 +239,6 @@ stages:
           clean: all
         steps:
           - checkout: self
-
-          - task: PowerShell@2
-            displayName: "Save Web.Config"
-            inputs:
-              filePath: "$(Build.SourcesDirectory)/scripts/Save_WebConfig.ps1"
-            continueOnError: true
-
-          - task: PowerShell@2
-            displayName: "Uninstall Origin Application"
-            inputs:
-              filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
-              arguments: >
-                -ApplicationName "Origin Web Services"
-                -Uninstall
-            continueOnError: true
-
-          - task: PowerShell@2
-            displayName: "Install VC Redist"
-            inputs:
-              filePath: "$(Build.SourcesDirectory)/scripts/InstallVCRedist.ps1"
-              failOnStderr: true
 
           - download: SaludServices104_120
             artifact: drop

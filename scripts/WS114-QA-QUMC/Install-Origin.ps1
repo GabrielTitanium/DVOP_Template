@@ -8,10 +8,10 @@ param (
     [string]$webDescription = "Default Web Site",
     [string]$webSPort = 80,
     [string]$webSiteIp = "*",
-    [string]$dsnMssqlDatabase = "UNITY_CORK-CONFIG_114",
+    [string]$dsnMssqlDatabase,
     [string]$dsnMssqlPassword,
-    [string]$dsnMssqlServer = "\\db2022-01.t.titanium.solutions\BackUps2\LMU Backups",
-    [string]$dsnMssqlUsername = "saluddental",
+    [string]$dsnMssqlServer,
+    [string]$dsnMssqlUsername,
     [string]$webServicesPathName = "TITANIUMWSERVER",
     [string]$webApplicationsPathName = "TITANIUMCLIENT",
     [string]$allowMultipleVersions = "No",
@@ -19,10 +19,10 @@ param (
     [string]$webAppPool = "TitaniumSolutionsDentalAppPool",
     [string]$webAppPoolCreate = "true",
     [string]$documentsPath = "%ALLUSERSPROFILE%\Titanium Solutions\Documents",
-    [string]$reportingServicesURL = "http://DB2019-01.t.titanium.solutions/reportserver",
-    [string]$reportingServicesContextFolder = "QA_QUMC_114/Application",
-    [string]$reportingServicesMenuFolder = "QA_QUMC_114/Console",
-    [string]$reportingServicesUserName = "t\ReportsUser",
+    [string]$reportingServicesURL,
+    [string]$reportingServicesContextFolder,
+    [string]$reportingServicesMenuFolder,
+    [string]$reportingServicesUserName,
     [string]$reportingServicesPassword
 )
 
