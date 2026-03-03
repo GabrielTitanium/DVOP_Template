@@ -239,8 +239,6 @@ stages:
             inputs:
               filePath: "$(Build.SourcesDirectory)/scripts/Save_WebConfig.ps1"
             continueOnError: true
-            # Note: only runs this when backup stage is disabled (otherwise it ran above)
-            condition: ${{ eq(parameters.enableBackupRestore, false) }}
 
           - task: PowerShell@2
             displayName: "Uninstall Origin Application"
@@ -250,7 +248,6 @@ stages:
                 -ApplicationName "Origin Web Services"
                 -Uninstall
             continueOnError: true
-            condition: ${{ eq(parameters.enableBackupRestore, false) }}
 
           - task: PowerShell@2
             displayName: "Install VC Redist"
