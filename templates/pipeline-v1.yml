@@ -393,7 +393,7 @@ stages:
             env:
               DB_IP:       $(privateDB)
               DB_NAME:     $(databaseName)
-              SQL_USER:    $(databaseUser)
+              SQL_USER:    $(databaseUserName)
               SQL_PASSWORD: $(databasePassword)
 
           - task: PowerShell@2
@@ -508,7 +508,7 @@ stages:
               env:
                 DB_IP:       $(privateDB)
                 DB_NAME:     $(databaseName)
-                SQL_USER:    $(databaseUser)
+                SQL_USER:    $(databaseUserName)
                 SQL_PASSWORD: $(databasePassword)
 
     # -------------------------------------------------------------------------
@@ -626,7 +626,7 @@ stages:
               env:
                 DB_IP:                  $(privateDB)
                 DB_NAME:                $(databaseName)
-                SQL_USER:               $(databaseUser)
+                SQL_USER:               $(databaseUserName)
                 SQL_PASSWORD:           $(databasePassword)
                 REPORTURL:              $(reportServerURL)
                 REPORTCONTEXTFOLDER:    $(reportContextFolder)
@@ -670,7 +670,7 @@ stages:
               env:
                 DB_IP:       $(privateDB)
                 DB_NAME:     $(databaseName)
-                SQL_USER:    $(databaseUser)
+                SQL_USER:    $(databaseUserName)
                 SQL_PASSWORD: $(databasePassword)
 
             - task: PowerShell@2
