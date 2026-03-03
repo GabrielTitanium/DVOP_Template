@@ -195,20 +195,20 @@ stages:
                       exit 1
                   }
 
-              - task: PowerShell@2
-                displayName: "Save Web.Config"
-                inputs:
-                  filePath: "$(Build.SourcesDirectory)/scripts/Save_WebConfig.ps1"
-                continueOnError: true
+            - task: PowerShell@2
+              displayName: "Save Web.Config"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Save_WebConfig.ps1"
+              continueOnError: true
 
-              - task: PowerShell@2
-                displayName: "Uninstall Origin Application"
-                inputs:
-                  filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
-                  arguments: >
-                    -ApplicationName "Origin Web Services"
-                    -Uninstall
-                continueOnError: true
+            - task: PowerShell@2
+              displayName: "Uninstall Origin Application"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
+                arguments: >
+                  -ApplicationName "Origin Web Services"
+                  -Uninstall
+              continueOnError: true
 
   # ---------------------------------------------------------------------------
   # 3. Fetch Salud Artifacts
