@@ -328,7 +328,7 @@ stages:
               REPORTSERVICESUSERNAME: $(reportUser)
               REPORTSERVICESPASSWORD: $(reportPassword)
 
-        - ${{ if ne(parameters.updateWebConfigScriptPath, '') }}:
+          - ${{ if ne(parameters.updateWebConfigScriptPath, '') }}:
           - task: PowerShell@2
             displayName: "Update Web.config"
             inputs:
