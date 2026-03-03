@@ -214,10 +214,10 @@ stages:
               continueOnError: true
 
             - task: PowerShell@2
-            displayName: "Install VC Redist"
-            inputs:
-              filePath: "$(Build.SourcesDirectory)/scripts/InstallVCRedist.ps1"
-              failOnStderr: true
+              displayName: "Install VC Redist"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/InstallVCRedist.ps1"
+                failOnStderr: true
 
   # ---------------------------------------------------------------------------
   # 3. Fetch Salud Artifacts
