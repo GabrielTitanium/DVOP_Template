@@ -320,7 +320,7 @@ stages:
             env:
               DB_IP:                  $(privateDB)
               DB_NAME:                $(databaseName)
-              SQL_USER:               $(databaseUser)
+              SQL_USER:               $(databaseUserName)
               SQL_PASSWORD:           $(databasePassword)
               REPORTURL:              $(reportServerURL)
               REPORTCONTEXTFOLDER:    $(reportContextFolder)
