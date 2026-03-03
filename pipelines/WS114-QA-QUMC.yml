@@ -16,6 +16,7 @@ resources:
 extends:
   template: ../templates/pipeline-v1.yml
   parameters:
+    environmentName:                  'QUMC-QA'
     agentName:                        'WS114-QA-QUMC'
     webAppPool:                       'TitaniumSolutionsDentalAppPool'
     customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\MiddleEast\SaudiArabia\SaudiArabia\Run-UploadPackages.ps1'
