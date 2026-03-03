@@ -48,7 +48,7 @@ parameters:
 
   - name: updateWebConfigScriptPath
     type: string
-    default: 'scripts/Update-WebConfig.ps1'
+    default: ''
 
   - name: installOriginScriptPath
     type: string
@@ -328,6 +328,7 @@ stages:
               REPORTSERVICESUSERNAME: $(reportUser)
               REPORTSERVICESPASSWORD: $(reportPassword)
 
+        - ${{ if ne(parameters.updateWebConfigScriptPath, '') }}:
           - task: PowerShell@2
             displayName: "Update Web.config"
             inputs:
