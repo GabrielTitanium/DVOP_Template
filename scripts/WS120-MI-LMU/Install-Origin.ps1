@@ -16,7 +16,7 @@ param (
     [string]$webApplicationsPathName = "TITANIUMCLIENT",
     [string]$allowMultipleVersions = "No",
     [string]$webAppName,
-    [string]$webAppPool =,
+    [string]$webAppPool,
     [string]$webAppPoolCreate = "true",
     [string]$documentsPath = "%ALLUSERSPROFILE%\Titanium Solutions\Documents",
     [string]$reportingServicesURL,
