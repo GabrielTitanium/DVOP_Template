@@ -16,7 +16,7 @@ resources:
 extends:
   template: ../templates/pipeline-v1.yml
   parameters:
-    agentName:                        'WS120-MI-LMU'
+    agentName:                        'LMU-QA'
     webAppPool:                       'TitaniumSolutionsDentalAppPool'
      updateWebConfigScriptPath:        'scripts/WS120-MI-LMU/Update-WebConfig.ps1'
     customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\USA\LMU\Run-UploadPackages.ps1'
