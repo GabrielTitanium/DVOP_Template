@@ -18,7 +18,7 @@ extends:
   parameters:
     agentName:                        'LMU-QA'
     webAppPool:                       'TitaniumSolutionsDentalAppPool'
-     updateWebConfigScriptPath:        'scripts/WS120-MI-LMU/Update-WebConfig.ps1'
+    updateWebConfigScriptPath:        'scripts/WS120-MI-LMU/Update-WebConfig.ps1'
     customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\USA\LMU\Run-UploadPackages.ps1'
     customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\USA\LMU'
     enableBackupRestore:              false
