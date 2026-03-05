@@ -9,9 +9,9 @@ resources:
     - pipeline: SaludServicesTrunk  # Alias for the referenced pipeline
       project: Titanium                     # The project where the pipeline exists
       source: "Salud Services Trunk"        # The actual pipeline name (quoted because it contains spaces)
-      trigger:
-        tags:
-        - ReleaseReady # Trigger only on tags named 'ReleaseReady'
+      #trigger:
+        #tags:
+        #- ReleaseReady # Trigger only on tags named 'ReleaseReady'
 
 extends:
   template: ../templates/pipeline-v1.yml
