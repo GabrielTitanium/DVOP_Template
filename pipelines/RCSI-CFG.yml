@@ -1,0 +1,27 @@
+trigger: none
+pr: none
+
+variables:
+  - group: 'RCSI'
+
+resources:
+  pipelines:
+    - pipeline: SaludServicesTrunk  # Alias for the referenced pipeline
+      project: Titanium                     # The project where the pipeline exists
+      source: "Salud Services Trunk"        # The actual pipeline name (quoted because it contains spaces)
+      trigger:
+        tags:
+        - ReleaseReady # Trigger only on tags named 'ReleaseReady'
+
+extends:
+  template: ../templates/pipeline-v1.yml
+  parameters:
+    environmentName:                  'RCSI'
+    agentName:                        'RCSI-cfg-Agent'
+    webAppPool:                       'TitaniumSolutionsDentalAppPool'
+    customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\Europe\Cork\Run-UploadPackages.ps1'
+    customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\Europe\Cork'
+    enableBackupRestore:              false
+    #installOriginScriptPath:          'scripts/WS120-MI-LMU/Install-Origin.ps1'
+    organization:                     'Titanium-Solutions'
+    project:                          'Titanium'
