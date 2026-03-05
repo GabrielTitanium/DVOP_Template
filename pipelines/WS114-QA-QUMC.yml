@@ -26,4 +26,4 @@ extends:
     installOriginScriptPath:          'scripts/WS114-QA-QUMC/Install-Origin.ps1'
     organization:                     'Titanium-Solutions'
     project:                          'Titanium'
-    variableGroupId:                  '35'
+    variableGroupId:                  '34'
