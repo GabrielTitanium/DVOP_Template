@@ -1,0 +1,32 @@
+trigger: none
+pr: none
+
+variables:
+  - group: 'Montreal-QA'
+
+resources:
+  pipelines:
+    - pipeline: SaludServices104_122
+      project: Titanium
+      source: "Salud Services 104.122"
+      trigger:
+        tags:
+          - ReleaseReady
+
+extends:
+  template: ../templates/pipeline-v2.yml
+  parameters:
+    environmentName:                  'Montreal-QA'
+    agentName:                        'MontrealQA'
+    installerFile:                    'Setup_Salud.msi'
+    webAppName:                       'Salud'
+    webAppPool:                       'TitaniumSolutionsDentalAppPool'
+    updateWebConfigScriptPath:        'scripts/MONTREAL-QA/Update-WebConfig.ps1'
+    customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal\Run-UploadPackages.ps1'
+    customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal'
+    enableBackupRestore:              true
+    backupDirectory:                  '\\sql2.tth.ds\test-backups'
+    installOriginScriptPath:          'scripts/MONTREAL-QA/Install-Salud.ps1'
+    organization:                     'Titanium-Solutions'
+    project:                          'Titanium'
+    variableGroupId:                  '35'
