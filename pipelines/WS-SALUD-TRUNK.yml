@@ -1,0 +1,31 @@
+trigger: none
+pr: none
+
+variables:
+  - group: 'WS-SALUD'
+
+resources:
+  pipelines:
+    - pipeline: SaludServicesTrunk
+      project: Titanium
+      source: "Salud Services Trunk"
+      trigger:
+        tags:
+          - ReleaseReady
+
+extends:
+  template: ../templates/pipeline-v1.yml
+  parameters:
+    environmentName:                  'WS-SALUD'
+    agentName:                        'WS-SALUD-TRUNK'
+    installerFile:                    'Setup_Salud.msi'
+    webAppPool:                       'TitaniumSolutionsDentalAppPool'
+    updateWebConfigScriptPath:        'scripts/WS-SALUD-TRUNK/Update-WebConfig.ps1'
+    customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\Europe\DDUH\Run-UploadPackages.ps1'
+    customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\Europe\DDUH'
+    enableBackupRestore:              true
+    backupDirectory:                  '\\DB2022-01.t.titanium.solutions\BackUps2\QA_SALUD_TRUNK_nightly'
+    installOriginScriptPath:          'scripts/WS-SALUD-TRUNK/Install-Salud.ps1'
+    organization:                     'Titanium-Solutions'
+    project:                          'Titanium'
+    variableGroupId:                  '35'

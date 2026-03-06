@@ -1,7 +1,7 @@
 param (
-    [string]$sourcePath = "$(Pipeline.Workspace)\SaludServices104.120\drop\",
-    [string]$destinationPath = "C:\Build\",
-    [string]$itemsToMove = "Setup_Origin.msi,CustomerPackages.zip"
+    [string]$sourcePath,
+    [string]$destinationPath,
+    [string]$itemsToMove
 )
 
 # Convert comma-separated items into an array
