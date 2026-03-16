@@ -243,7 +243,7 @@ stages:
         steps:
           - checkout: self
 
-          - download: SaludServices104_120
+          - download: SaludServicesTrunk
             artifact: drop
             patterns: |
               drop/CustomerPackages.zip
@@ -286,7 +286,7 @@ stages:
           - task: PowerShell@2
             displayName: "Clear Registry Values"
             inputs:
-              filePath: "$(Build.SourcesDirectory)/scripts/Clear-Registry.ps1"
+              filePath: "$(Build.SourcesDirectory)/scripts/Clear-Registry-Salud.ps1"
               failOnStderr: true
 
           - task: PowerShell@2
@@ -567,7 +567,7 @@ stages:
               inputs:
                 buildType: 'specific'
                 project: '${{ parameters.project }}'
-                pipeline: 'Salud Services 104.120'
+                pipeline: 'Salud Services Trunk'
                 buildVersionToDownload: 'specific'
                 buildId: '$(ExtractLastGoodBuildId.LastGoodBuildId)'
                 artifactName: 'drop'
