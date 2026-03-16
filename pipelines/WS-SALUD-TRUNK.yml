@@ -14,7 +14,7 @@ resources:
           - ReleaseReady
 
 extends:
-  template: ../templates/pipeline-v1.yml
+  template: ../templates/pipeline-v3.yml
   parameters:
     environmentName:                  'WS-SALUD'
     agentName:                        'WS-SALUD-TRUNK'
