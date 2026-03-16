@@ -34,6 +34,9 @@ parameters:
     type: string
     default: ''
 
+  - name: installerFile
+    type: string
+
   - name: organization
     type: string
     default: 'Titanium-Solutions'
