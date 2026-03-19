@@ -37,6 +37,9 @@ parameters:
   - name: installerFile
     type: string
 
+  - name: webAppName
+    type: string
+
   - name: organization
     type: string
     default: 'Titanium-Solutions'

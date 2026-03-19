@@ -37,6 +37,12 @@ parameters:
     type: boolean
     default: false
 
+  - name: installerFile
+    type: string
+
+  - name: webAppName
+    type: string
+    
   # Required only when enableBackupRestore: true
   - name: backupDirectory
     type: string
