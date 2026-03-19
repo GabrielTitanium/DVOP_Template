@@ -42,7 +42,7 @@ parameters:
 
   - name: webAppName
     type: string
-    
+
   # Required only when enableBackupRestore: true
   - name: backupDirectory
     type: string
@@ -753,11 +753,12 @@ stages:
               displayName: "Copying Artifacts to Insurance Directory"
               inputs:
                 filePath: "$(Build.SourcesDirectory)/scripts/Copy-MSI.ps1"
+                failOnStderr: true
                 arguments: >
                   -sourcePath "$(Pipeline.Workspace)\InsuranceHostTrunk\drop\"
                   -destinationPath "C:\Insurance\"
                   -itemsToMove "*"
-              failOnStderr: true
+              
 
             # Stop the IIS service
             - task: PowerShell@2
