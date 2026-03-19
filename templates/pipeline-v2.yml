@@ -789,9 +789,13 @@ stages:
               inputs:
                 filePath: "$(Build.SourcesDirectory)/scripts/Update-AppJson.ps1"
                 arguments: >
-                  -insuranceHostUrl "$(InsuranceHostURL)"
-                  -basePath "$(InsurancePath)"
-                  -webConfigPath "$(webConfig)"
+                  -insuranceHostUrl $ENV:InsuranceHostURL
+                  -basePath $ENV:InsuranceDestination
+                  -webConfigPath $ENV:webConfig
+              env:
+                InsuranceHostURL: $(InsuranceURL)
+                InsuranceDestination: $(InsurancePath)
+                webConfig: $(webfilepath)
 
             # Start the IIS service
             - task: PowerShell@2
