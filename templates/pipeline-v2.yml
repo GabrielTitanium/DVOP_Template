@@ -29,6 +29,10 @@ parameters:
     type: boolean
     default: false
 
+  - name: installOriginScriptPath
+    type: string
+    default: 'scripts/Install-Origin.ps1'
+
   - name: enableInsuranceHost
     type: boolean
     default: false
