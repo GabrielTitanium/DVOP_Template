@@ -18,6 +18,8 @@ extends:
   parameters:
     environmentName:                  'WS120-MI-LMU'
     agentName:                        'WS120-MI-LMU'
+    installerFile:                    'Setup_Origin.msi'
+    webAppName:                       'Origin'
     webAppPool:                       'TitaniumSolutionsDentalAppPool'
     updateWebConfigScriptPath:        'scripts/WS120-MI-LMU/Update-WebConfig.ps1'
     customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\USA\LMU\Run-UploadPackages.ps1'
