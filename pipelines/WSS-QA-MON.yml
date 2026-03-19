@@ -29,7 +29,7 @@ extends:
     customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal'
     enableBackupRestore:              true
     enableInsuranceHost:              true
-    backupDirectory:                  '\\DB2022-04.t.titanium.solutions\BackUps\Montreal'
+    backupDirectory:                  '\\DB2022-04.t.titanium.solutions\Backups\WSS-QA-MON'
     installOriginScriptPath:          'scripts/MONTREAL-QA/Install-Salud.ps1'
     organization:                     'Titanium-Solutions'
     project:                          'Titanium'
