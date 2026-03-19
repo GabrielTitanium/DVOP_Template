@@ -208,11 +208,11 @@ stages:
              # continueOnError: true
 
             - task: PowerShell@2
-              displayName: "Uninstall Salud Application"
+              displayName: "Uninstall Application"
               inputs:
-                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
+                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Application.ps1"
                 arguments: >
-                  -ApplicationName "Salud Web Services"
+                  -ApplicationName "Salud Web Services", "Origin Web Services"
                   -Uninstall
               continueOnError: true
 
@@ -554,11 +554,11 @@ stages:
                 failOnStderr: true
 
             - task: PowerShell@2
-              displayName: "Uninstall Origin Application"
+              displayName: "Uninstall Application"
               inputs:
-                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
+                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Application.ps1"
                 arguments: >
-                  -ApplicationName "Origin Web Services"
+                  -ApplicationName "Salud Web Services", "Origin Web Services"
                   -Uninstall
               continueOnError: true
 

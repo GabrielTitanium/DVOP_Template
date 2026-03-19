@@ -1,8 +1,6 @@
-# Description: This script searches for installed applications by name and optionally uninstalls them.
-
 param (
-    [Parameter(Mandatory = $true, HelpMessage = "Enter part or all of the application name.")]
-    [string]$ApplicationName,
+    [Parameter(Mandatory = $true, HelpMessage = "Enter part or all of the application name(s).")]
+    [string[]]$ApplicationName,  # Changed to string array
 
     [Parameter(Mandatory = $false, HelpMessage = "Include this switch to uninstall the found application.")]
     [switch]$Uninstall
@@ -14,17 +12,19 @@ $registryPaths = @(
     "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
 )
 
-# Search the registry for installed applications matching the name.
+# Search the registry for installed applications matching any of the names.
 $apps = foreach ($path in $registryPaths) {
     if (Test-Path $path) {
         Get-ItemProperty -Path $path | Where-Object {
-            $_.DisplayName -and $_.DisplayName -ilike "*$ApplicationName*"
+            $currentApp = $_
+            $_.DisplayName -and ($ApplicationName | Where-Object { $currentApp.DisplayName -ilike "*$_*" })
         }
     }
 }
 
+# Rest of your script remains the same...
 if (-not $apps) {
-    Write-Host "Application '$ApplicationName' not found." -ForegroundColor Yellow
+    Write-Host "No applications matching the specified names were found." -ForegroundColor Yellow
     exit 0
 }
 
@@ -35,7 +35,6 @@ foreach ($app in $apps) {
 
     if ($Uninstall) {
         Write-Host "Attempting to uninstall $displayName..." -ForegroundColor Cyan
-        # Uninstall the application silently; /qn performs a silent uninstallation with no user interface.
         $process = Start-Process msiexec.exe -ArgumentList "/x $productCode /qn" -Wait -PassThru
         if ($process.ExitCode -eq 0) {
             Write-Host "$displayName uninstalled successfully." -ForegroundColor Green
@@ -48,4 +47,3 @@ foreach ($app in $apps) {
         Write-Host "Uninstallation skipped for $displayName. Use -Uninstall switch to proceed." -ForegroundColor Yellow
     }
 }
-# End of script

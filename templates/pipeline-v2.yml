@@ -29,6 +29,10 @@ parameters:
     type: boolean
     default: false
 
+  - name: enableInsuranceHost
+    type: boolean
+    default: false
+
   # Required only when enableBackupRestore: true
   - name: backupDirectory
     type: string
@@ -49,10 +53,6 @@ parameters:
   - name: updateWebConfigScriptPath
     type: string
     default: ''
-
-  - name: installOriginScriptPath
-    type: string
-    default: 'scripts/Install-Origin.ps1'
 
 # =============================================================================
 # Stages
@@ -205,11 +205,11 @@ stages:
              # continueOnError: true
 
             - task: PowerShell@2
-              displayName: "Uninstall Salud Application"
+              displayName: "Uninstall Application"
               inputs:
-                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
+                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Application.ps1"
                 arguments: >
-                  -ApplicationName "Salud Web Services"
+                  -ApplicationName "Salud Web Services", "Origin Web Services"
                   -Uninstall
               continueOnError: true
 
@@ -244,6 +244,7 @@ stages:
             artifact: drop
             patterns: |
               drop/CustomerPackages.zip
+              drop/Setup_Origin.msi
               drop/Setup_Salud.msi
             displayName: "Downloading Artifacts"
 
@@ -254,7 +255,7 @@ stages:
               arguments: >
                 -sourcePath "$(Pipeline.Workspace)\SaludServices104_122\drop\"
                 -destinationPath "C:\Build\"
-                -itemsToMove "Setup_Salud.msi,CustomerPackages.zip"
+                -itemsToMove "Setup_Origin.msi,Setup_Salud.msi,CustomerPackages.zip"
               failOnStderr: true
 
           - powershell: |
@@ -551,11 +552,11 @@ stages:
                 failOnStderr: true
 
             - task: PowerShell@2
-              displayName: "Uninstall Origin Application"
+              displayName: "Uninstall Application"
               inputs:
-                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Origin.ps1"
+                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Application.ps1"
                 arguments: >
-                  -ApplicationName "Origin Web Services"
+                  -ApplicationName "Salud Web Services", "Origin Web Services"
                   -Uninstall
               continueOnError: true
 
@@ -707,3 +708,83 @@ stages:
               inputs:
                 filePath: "${{ parameters.customerPackagesUploadScriptPath }}"
               continueOnError: true
+    # ---------------------------------------------------------------------------
+    # 9. Download InsuranceHost — only runs when enableInsuranceHost is true
+    # ---------------------------------------------------------------------------
+  - ${{ if eq(parameters.enableInsuranceHost, true) }}:
+    - stage: DownloadInsuranceHost
+      displayName: 'Download InsuranceHost Trunk Artifacts'
+      dependsOn: DatabaseMigration
+      condition: succeeded()
+      jobs:
+        - job: DownloadArtifacts
+          displayName: 'Download Artifacts from InsuranceHost Trunk'
+          pool:
+            name: Default
+            demands: 'agent.name -equals ${{ parameters.agentName }}'
+          steps:
+            - checkout: self
+
+            # Uninstall InsuranceHost
+            - task: PowerShell@2
+              displayName: "Uninstall Insurance"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Uninstall-Insurance.ps1"
+                arguments: >
+                  -ApplicationName "InsuranceHost"
+                  -Uninstall
+              continueOnError: true
+
+            - download: InsuranceHostTrunk
+              artifact: drop
+              displayName: "Downloading Artifacts"
+
+            - task: PowerShell@2
+              displayName: "Copying Artifacts to Insurance Directory"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Copy-MSI.ps1"
+                arguments: >
+                  -sourcePath "$(Pipeline.Workspace)\InsuranceHostTrunk\drop\"
+                  -destinationPath "C:\Insurance\"
+                  -itemsToMove "*"
+              failOnStderr: true
+
+            # Stop the IIS service
+            - task: PowerShell@2
+              displayName: "Stop IIS Services"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Stop-IIS.ps1"
+                failOnStderr: true
+
+            - task: PowerShell@2
+              displayName: "Install InsuranceHost Application"
+              continueOnError: true
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Install-Insurance.ps1"
+                arguments: >
+                  -dsnMssqlDatabase $ENV:DB_NAME
+                  -dsnMssqlUsername $ENV:SQL_USER
+                  -dsnMssqlPassword $ENV:SQL_PASSWORD
+                  -dsnMssqlServer $ENV:DB_IP
+              env:
+                DB_NAME: $(databaseName)
+                SQL_USER: $(databaseUserName)
+                SQL_PASSWORD: $(databasePassword)
+                DB_IP: $(privateDB)
+
+            - task: PowerShell@2
+              displayName: "Update AppJson for InsuranceHost"
+              continueOnError: true
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Update-AppJson.ps1"
+                arguments: >
+                  -insuranceHostUrl "$(InsuranceHostURL)"
+                  -basePath "$(InsurancePath)"
+                  -webConfigPath "$(webConfig)"
+
+            # Start the IIS service
+            - task: PowerShell@2
+              displayName: "Start IIS Services"
+              inputs:
+                filePath: "$(Build.SourcesDirectory)/scripts/Start-IIS.ps1"
+                failOnStderr: true
