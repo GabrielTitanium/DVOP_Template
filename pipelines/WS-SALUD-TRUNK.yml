@@ -19,6 +19,7 @@ extends:
     environmentName:                  'WS-SALUD'
     agentName:                        'WS-SALUD-TRUNK'
     installerFile:                    'Setup_Salud.msi'
+    webAppName:                       'Salud'
     webAppPool:                       'TitaniumSolutionsDentalAppPool'
     updateWebConfigScriptPath:        'scripts/WS-SALUD-TRUNK/Update-WebConfig.ps1'
     customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\Europe\DDUH\Run-UploadPackages.ps1'
