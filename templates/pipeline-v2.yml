@@ -163,6 +163,22 @@ stages:
               inputs:
                 targetType: inline
                 script: |
+        
+                  $ErrorActionPreference = 'Stop'
+
+                  # Check if Invoke-Sqlcmd is available
+                  if (Get-Command Invoke-Sqlcmd -ErrorAction SilentlyContinue) {
+                      Write-Host "SqlServer module already available. Skipping installation."
+                  }
+                  else {
+                      Write-Host "SqlServer module not found. Installing..."
+
+                      Install-Module -Name SqlServer -Scope CurrentUser -Force -AllowClobber
+                      Import-Module SqlServer
+
+                      Write-Host "SqlServer module installed successfully."
+                  }
+                  
                   #— grab all required parameters from pipeline variables
                   $DB_IP = "$(privateDB)"
                   $DB_NAME = "$(databaseName)"
