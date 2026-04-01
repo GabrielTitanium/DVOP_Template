@@ -26,7 +26,7 @@ extends:
     customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal\Run-UploadPackages.ps1'
     customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal'
     enableBackupRestore:              true
-    backupDirectory:                  '\\sql1.tth.ds\test-backups'
+    backupDirectory:                  '\\sql1.tth.ds\test-backups\Montreal-Sandbox-backups'
     installOriginScriptPath:          'scripts/Install-Application.ps1'
     organization:                     'Titanium-Solutions'
     project:                          'Titanium'
