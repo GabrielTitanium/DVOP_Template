@@ -22,6 +22,7 @@ extends:
   parameters:
     environmentName:                  'WSS-QA-MON'
     agentName:                        'WSS-QA-MON'
+    poolName:                         'Default'
     installerFile:                    'Setup_Origin.msi'
     webAppName:                       'Origin'
     webAppPool:                       'TitaniumSolutionsDentalAppPool'

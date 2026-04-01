@@ -19,6 +19,7 @@ extends:
     environmentName:                  'MontrealSandbox'
     agentName:                        'MontrealSandbox'
     installerFile:                    'Setup_Salud.msi'
+    poolName:                         'Dublin'
     webAppName:                       'Salud'
     webAppPool:                       'TitaniumSolutionsDentalAppPool'
     updateWebConfigScriptPath:        'scripts/MONTREAL-QA/Update-WebConfig.ps1'

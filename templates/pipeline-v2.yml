@@ -8,6 +8,10 @@ parameters:
   # Required — passed in by every customer pipeline file
   - name: agentName
     type: string
+
+  - name: poolName
+    type: string
+  
   
   - name: environmentName
     type: string
@@ -80,7 +84,7 @@ stages:
         displayName: '${{ parameters.agentName }} deployment'
         environment: '${{ parameters.environmentName }}'
         pool:
-          name: Default
+          name: ${{ parameters.poolName }}
           demands: 'agent.name -equals ${{ parameters.agentName }}'
         strategy:
           runOnce:
