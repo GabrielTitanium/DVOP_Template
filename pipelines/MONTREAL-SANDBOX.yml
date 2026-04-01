@@ -25,7 +25,7 @@ extends:
     updateWebConfigScriptPath:        'scripts/MONTREAL-QA/Update-WebConfig.ps1'
     customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal\Run-UploadPackages.ps1'
     customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal'
-    enableBackupRestore:              true
+    enableBackupRestore:              false
     backupDirectory:                  '\\sql1.tth.ds\test-backups\Montreal-Sandbox-backups'
     installOriginScriptPath:          'scripts/Install-Application.ps1'
     organization:                     'Titanium-Solutions'
