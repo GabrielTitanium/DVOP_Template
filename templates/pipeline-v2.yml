@@ -152,7 +152,7 @@ stages:
       jobs:
         - job: BackupDatabaseJob
           pool:
-            name: Default
+            name: ${{ parameters.poolName }}
             demands: 'agent.name -equals ${{ parameters.agentName }}'
           steps:
             - checkout: self
@@ -247,7 +247,7 @@ stages:
     jobs:
       - job: DownloadArtifacts
         pool:
-          name: Default
+          name: ${{ parameters.poolName }}
           demands: 'agent.name -equals ${{ parameters.agentName }}'
         workspace:
           clean: all
@@ -290,7 +290,7 @@ stages:
     jobs:
       - job: InstallAppJob
         pool:
-          name: Default
+          name: ${{ parameters.poolName }}
           demands: 'agent.name -equals ${{ parameters.agentName }}'
         steps:
           - checkout: self
@@ -390,7 +390,7 @@ stages:
     jobs:
       - job: MigrateDatabaseJob
         pool:
-          name: Default
+          name: ${{ parameters.poolName }}
           demands: 'agent.name -equals ${{ parameters.agentName }}'
         steps:
           - checkout: self
@@ -429,7 +429,7 @@ stages:
     jobs:
       - job: UploadPackagesJob
         pool:
-          name: Default
+          name: ${{ parameters.poolName }}
           demands: 'agent.name -equals ${{ parameters.agentName }}'
         steps:
           - checkout: self
@@ -503,7 +503,7 @@ stages:
       jobs:
         - job: RestoreDatabaseJob
           pool:
-            name: Default
+            name: ${{ parameters.poolName }}
             demands: 'agent.name -equals ${{ parameters.agentName }}'
           variables:
             backupFilePath: $[ stageDependencies.BackupDatabase.BackupDatabaseJob.outputs['BackupDatabaseTask.BackupFilePath'] ]
@@ -541,7 +541,7 @@ stages:
       jobs:
         - job: RollbackJob
           pool:
-            name: Default
+            name: ${{ parameters.poolName }}
             demands: 'agent.name -equals ${{ parameters.agentName }}'
           variables:
             backupFilePath: $[ stageDependencies.BackupDatabase.BackupDatabaseJob.outputs['BackupDatabaseTask.BackupFilePath'] ]
@@ -735,7 +735,7 @@ stages:
         - job: DownloadArtifacts
           displayName: 'Download Artifacts from InsuranceHost Trunk'
           pool:
-            name: Default
+            name: ${{ parameters.poolName }}
             demands: 'agent.name -equals ${{ parameters.agentName }}'
           steps:
             - checkout: self
