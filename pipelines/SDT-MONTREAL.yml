@@ -17,6 +17,7 @@ extends:
   template: ../templates/pipeline-v2.yml
   parameters:
     environmentName:                  'SDT-Montreal'
+    poolName:                         'Dublin'
     agentName:                        'SDT-MONTREAL'
     installerFile:                    'Setup_Salud.msi'
     webAppName:                       'Salud'
