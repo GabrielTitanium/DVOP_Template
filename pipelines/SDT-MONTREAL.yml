@@ -1,0 +1,31 @@
+trigger: none
+pr: none
+
+variables:
+  - group: 'SDT-MONTREAL'
+
+resources:
+  pipelines:
+    - pipeline: SaludServices104_122
+      project: Titanium
+      source: "Salud Services 104.122"
+      trigger:
+        tags:
+          - ReleaseReady
+
+extends:
+  template: ../templates/pipeline-v2.yml
+  parameters:
+    environmentName:                  'SDT-Montreal'
+    agentName:                        'SDT-MONTREAL'
+    installerFile:                    'Setup_Salud.msi'
+    webAppName:                       'Salud'
+    webAppPool:                       'TitaniumSolutionsDentalAppPool'
+    updateWebConfigScriptPath:        'scripts/MONTREAL-QA/Update-WebConfig.ps1'
+    customerPackagesUploadScriptPath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal\Run-UploadPackages.ps1'
+    customerPackagesXmlReferencePath: 'C:\Build\CustomerPackages\CustomerPackages\Canada\Montreal'
+    enableBackupRestore:              false
+    backupDirectory:                  ''
+    installOriginScriptPath:          'scripts/Install-Application.ps1'
+    organization:                     'Titanium-Solutions'
+    project:                          'Titanium'
