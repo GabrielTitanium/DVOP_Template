@@ -2,7 +2,7 @@ trigger: none
 pr: none
 
 variables:
-  - group: 'SDT-MONTREAL'
+  - group: 'SDT-MONTREAL(FRENCH-COLLATION)'
 
 resources:
   pipelines:
@@ -16,7 +16,7 @@ resources:
 extends:
   template: ../templates/pipeline-v2.yml
   parameters:
-    environmentName:                  'SDT-Montreal'
+    environmentName:                  'SDT-MONTREAL(FRENCH-COLLATION)'
     poolName:                         'Dublin'
     agentName:                        'SDT-MONTREAL'
     installerFile:                    'Setup_Salud.msi'
