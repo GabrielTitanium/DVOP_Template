@@ -13,9 +13,9 @@ resources:
         tags:
           - ReleaseReady
     
-    - pipeline: InsuranceHostTrunk  # Alias for the referenced pipeline
+    - pipeline: InsuranceHost104_122  # Alias for the referenced pipeline
       project: Titanium                     # The project where the pipeline exists
-      source: "InsuranceHost Trunk"        # The actual pipeline name (quoted because it contains spaces)
+      source: "InsuranceHost 104.122"        # The actual pipeline name (quoted because it contains spaces)
 
 extends:
   template: ../templates/pipeline-v2.yml

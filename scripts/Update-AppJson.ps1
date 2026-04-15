@@ -25,7 +25,7 @@ Write-Host "Backup created at: $backupPath"
 
 # Update specific fields in InsuranceSettings
 $json.InsuranceSettings.TransmissionSystem       = "CDANET"
-#$json.InsuranceSettings.DentalXChangeUrl         = "https://staging-api.dentalxchange.com/"
+$json.InsuranceSettings.DentalXChangeUrl         = "https://api.dentalxchange.com/sandbox/"
 $json.InsuranceSettings.DentalXChangeApiKey      = "eyJvcmciOiI2MzRlNTFhNGQxOWU4MTAwMDFjNjM5ZTkiLCJpZCI6ImYyYTRkMjdlOTU2MTRjOGZiMGJmMDFmNGU1YjQ5ZjZkIiwiaCI6Im11cm11cjEyOCJ9"
 $json.InsuranceSettings.DentalXChangeApiUserName = "TitaniumUser"
 $json.InsuranceSettings.DentalXChangeApiPassword = "Tooth123"
